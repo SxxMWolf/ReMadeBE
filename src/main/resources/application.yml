@@ -1,21 +1,71 @@
-# application.yml (하나의 파일)
-
-# ── 공통(Common) ────────────────────────────────────────────────────────────────
 spring:
   profiles:
-    active: dev   # 기본 실행 프로필
+    active: ${SPRING_PROFILES_ACTIVE:dev}  # 기본 프로필을 dev로 설정
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
   datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/recorddb}
+    username: ${DB_USER:recorduser}
+    password: ${DB_PASSWORD:recordpass}
     driver-class-name: org.postgresql.Driver
   jpa:
-    open-in-view: false
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: ${JPA_SHOW_SQL:true}
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: ${JPA_OPEN_IN_VIEW:true}
   servlet:
     multipart:
       max-file-size: 200MB
       max-request-size: 200MB
+  # Jackson 설정: Java 8 날짜/시간 타입(LocalDateTime 등)을 JSON으로 직렬화할 수 있도록 설정
+  # write-dates-as-timestamps: false → ISO-8601 형식 문자열로 변환 (예: "2024-11-13T09:50:13")
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    # Java 8 날짜/시간 모듈 자동 등록 (jackson-datatype-jsr310)
+    deserialization:
+      fail-on-unknown-properties: false
+
+# ⬇️ 여기부터는 spring 바깥(루트) 레벨
+app:
+  base-url: https://record.example.com
+  mail:
+    from: no-reply@record.example.com
+    reset-token-ttl-minutes: 30
 
 openai:
   api:
-    key: ${OPENAI_API_KEY}   # 환경변수로 주입
+    key: ${OPENAI_API_KEY}
+  url:
+    transcription: https://api.openai.com/v1/audio/transcriptions
+    chat: https://api.openai.com/v1/chat/completions
+    image: https://api.openai.com/v1/images/generations
+  model:
+    transcription: whisper-1
+    chat: gpt-4o-mini
+    image: gpt-image-1
+  limits:
+    whisperMaxFileMB: ${OPENAI_WHISPER_MAX_MB:25}
+    imagePromptMaxChars: ${OPENAI_IMAGE_PROMPT_MAX:900}
+
+stt:
+  provider: ${STT_PROVIDER:openai}
+  language: ${STT_LANGUAGE:ko}
+  ffmpeg:
+    path: ${FFMPEG_PATH:ffmpeg}
 
 cloud:
   aws:
@@ -23,73 +73,17 @@ cloud:
       access-key: ${AWS_ACCESS_KEY_ID:}
       secret-key: ${AWS_SECRET_ACCESS_KEY:}
     region:
-      static: ap-northeast-2
+      static: ${AWS_REGION:ap-northeast-2}
     s3:
-      bucket: recording-bucket
+      bucket: ${S3_BUCKET:recording-bucket}
 
-stt:
-  ffmpeg:
-    path: ${FFMPEG_PATH:ffmpeg}
-
-# 선택: JWT를 외부화(추후 JwtUtil에서 @Value로 받도록 개선)
 jwt:
   secret: ${JWT_SECRET:change-me-32bytes-minimum-aaaaaaaaaaaaaaa}
-  expiration-ms: ${JWT_EXPIRATION_MS:3600000}  # 1시간
+  expiration-ms: ${JWT_EXPIRATION_MS:3600000}
 
 logging:
   level:
-    root: INFO
-
----
-# ── DEV 프로필 ────────────────────────────────────────────────────────────────
-spring:
-  config:
-    activate:
-      on-profile: dev
-
-  datasource:
-    url: jdbc:postgresql://localhost:5432/recorddb
-    username: postgres
-    password: recordpass
-
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-    open-in-view: true
-
-logging:
-  level:
-    org.springframework.web: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-
----
-# ── PROD 프로필 ───────────────────────────────────────────────────────────────
-spring:
-  config:
-    activate:
-      on-profile: prod
-
-  datasource:
-    url: jdbc:postgresql://3.34.xxx.xxx:5432/recorddb   # 실제 IP/호스트로 교체
-    username: recorduser
-    password: ${DB_PASSWORD}                             # 환경변수로 주입
-
-  jpa:
-    hibernate:
-      ddl-auto: none
-    show-sql: false
-    properties:
-      hibernate:
-        format_sql: true
-    open-in-view: false
-
-logging:
-  level:
-    org.springframework.web: INFO
-    org.hibernate.SQL: INFO
-    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    root: ${LOG_ROOT_LEVEL:INFO}
+    org.springframework.web: ${LOG_WEB_LEVEL:INFO}
+    org.hibernate.SQL: ${LOG_HIBERNATE_SQL:INFO}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_HIBERNATE_BINDER:WARN}
