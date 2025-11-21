@@ -2,6 +2,7 @@ package com.example.record.review.service;
 
 import com.example.record.review.dto.request.TicketCreateRequest;
 import com.example.record.review.dto.response.TicketCreateResponse;
+import com.example.record.review.dto.response.TicketResponse;
 import com.example.record.review.entity.Ticket;
 import com.example.record.review.repository.TicketRepository;
 import com.example.record.user.User;
@@ -10,6 +11,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -53,6 +57,21 @@ public class TicketService {
                 .ticketId(saved.getId())
                 .createdAt(saved.getCreatedAt())
                 .build();
+    }
+
+    /**
+     * 사용자의 티켓 목록 조회
+     * @param userId 사용자 ID
+     * @return 해당 사용자의 티켓 목록
+     */
+    @Transactional(readOnly = true)
+    public List<TicketResponse> getTicketsByUserId(String userId) {
+        List<Ticket> tickets = ticketRepository.findByUser_IdOrderByCreatedAtDesc(userId);
+        // LAZY 로딩을 트랜잭션 내에서 강제로 로드
+        tickets.forEach(t -> t.getUser().getId());
+        return tickets.stream()
+                .map(TicketResponse::from)
+                .collect(Collectors.toList());
     }
 }
 
